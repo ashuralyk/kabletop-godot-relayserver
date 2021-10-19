@@ -26,6 +26,7 @@ pub fn register_client(client_id: i32, value: Value) -> BoxFuture<'static, Resul
 	Box::pin(async move {
 		let value: request_relay::RegisterClient = from_value(value)
 			.map_err(|err| format!("deserialize RegisterClient -> {}", err))?;
+		println!("client {} registered: {} ({}/{})", client_id, value.nickname, value.staking_ckb, value.bet_ckb);
 		let ok = relay_server!().add_partial_client(client_id, ClientInfo {
 			id:          client_id,
 			nickname:    value.nickname,
@@ -42,6 +43,7 @@ pub fn unregister_client(client_id: i32, value: Value) -> BoxFuture<'static, Res
 	Box::pin(async move {
 		let _: request_relay::UnregisterClient = from_value(value)
 			.map_err(|err| format!("deserialize UnregisterClient -> {}", err))?;
+		println!("client {} unregistered", client_id);
 		let ok = relay_server!().remove_partial_client(client_id);
 		Ok(json!(response_relay::UnregisterClient {
 			result: ok
@@ -65,29 +67,34 @@ pub fn connect_client(client_id: i32, value: Value) -> BoxFuture<'static, Result
 		let mut value: request_relay::ConnectClient = from_value(value)
 			.map_err(|err| format!("deserialize ConnectClient -> {}", err))?;
 		value.requester.id = client_id;
-		let ok = relay_server!().connect(value.requester, value.client_id);
+		let mut ok = relay_server!().connect(value.requester, value.client_id);
+		if ok {
+			let value: response_relay::ProposeConnection = relay_server!()
+				.get_serverclient(value.client_id)
+				.call("propose_connection", request_relay::ProposeConnection {})
+				.map_err(|err| format!("relay connect_client error: {}", err))?;
+			ok = value.result;
+		}
 		Ok(json!(response_relay::ConnectClient {
 			result: ok
 		}))
 	})
 }
 
-pub fn propose_channel_parameter(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
+pub fn disconnect_client(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
-		let value: response::ApproveGameParameter = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "propose_channel_parameter")?)
-			.call("propose_channel_parameter", value)
-			.map_err(|err| format!("relay propose_channel_parameter error: {}", err))?;
-		Ok(json!(value))
+		let _: request_relay::DisconnectClient = from_value(value)
+			.map_err(|err| format!("deserialize DisconnectClient -> {}", err))?;
+		relay_server!().disconnect(client_id);
+		Ok(json!(response_relay::DisconnectClient {}))
 	})
 }
 
 pub fn prepare_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "prepare_kabletop_channel")?;
 		let value: response::CompleteAndSignChannel = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "prepare_kabletop_channel")?)
+			.get_serverclient(partner_id)
 			.call("prepare_kabletop_channel", value)
 			.map_err(|err| format!("relay prepare_kabletop_channel error: {}", err))?;
 		Ok(json!(value))
@@ -96,9 +103,9 @@ pub fn prepare_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'stat
 
 pub fn open_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "open_kabletop_channel")?;
 		let value: response::OpenChannel = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "open_kabletop_channel")?)
+			.get_serverclient(partner_id)
 			.call("open_kabletop_channel", value)
 			.map_err(|err| format!("relay open_kabletop_channel error: {}", err))?;
 		Ok(json!(value))
@@ -107,9 +114,9 @@ pub fn open_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'static,
 
 pub fn close_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "close_kabletop_channel")?;
 		let value: response::CloseChannel = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "close_kabletop_channel")?)
+			.get_serverclient(partner_id)
 			.call("close_kabletop_channel", value)
 			.map_err(|err| format!("relay close_kabletop_channel error: {}", err))?;
 		Ok(json!(value))
@@ -118,9 +125,9 @@ pub fn close_kabletop_channel(client_id: i32, value: Value) -> BoxFuture<'static
 
 pub fn notify_game_over(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "notify_game_over")?;
 		let value: response::CloseGame = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "notify_game_over")?)
+			.get_serverclient(partner_id)
 			.call("notify_game_over", value)
 			.map_err(|err| format!("relay notify_game_over error: {}", err))?;
 		Ok(json!(value))
@@ -129,9 +136,9 @@ pub fn notify_game_over(client_id: i32, value: Value) -> BoxFuture<'static, Resu
 
 pub fn switch_round(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "switch_round")?;
 		let value: response::OpenRound = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "switch_round")?)
+			.get_serverclient(partner_id)
 			.call("switch_round", value)
 			.map_err(|err| format!("relay switch_round error: {}", err))?;
 		Ok(json!(value))
@@ -140,9 +147,9 @@ pub fn switch_round(client_id: i32, value: Value) -> BoxFuture<'static, Result<V
 
 pub fn sync_operation(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "sync_operation")?;
 		let value: response::ApplyOperation = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "sync_operation")?)
+			.get_serverclient(partner_id)
 			.call("sync_operation", value)
 			.map_err(|err| format!("relay sync_operation error: {}", err))?;
 		Ok(json!(value))
@@ -151,9 +158,9 @@ pub fn sync_operation(client_id: i32, value: Value) -> BoxFuture<'static, Result
 
 pub fn sync_p2p_message(client_id: i32, value: Value) -> BoxFuture<'static, Result<Value, String>> {
 	Box::pin(async move {
+		let partner_id = get_partner_id(client_id, "sync_p2p_message")?;
 		let value: response::ReplyP2pMessage = relay_server!()
-			.get_serverclient(client_id)
-			.set_id(get_partner_id(client_id, "sync_p2p_message")?)
+			.get_serverclient(partner_id)
 			.call("sync_p2p_message", value)
 			.map_err(|err| format!("relay sync_p2p_message error: {}", err))?;
 		Ok(json!(value))

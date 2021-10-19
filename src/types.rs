@@ -88,10 +88,28 @@ impl RelayServer {
 		partner_info
 	}
 
+	pub fn remove_channel(&mut self, left: i32, right: i32) -> bool {
+		let mut value = (ClientInfo::default(), ClientInfo::default());
+		for (client, partner) in &self.channels {
+			if client.id == left && partner.id == right 
+				|| client.id == right && partner.id == left {
+				value = (client.clone(), partner.clone());
+				break
+			}
+		}
+		if value != (ClientInfo::default(), ClientInfo::default()) {
+			self.channels.remove(&value);
+			true
+		} else {
+			false
+		}
+	}
+
 	pub fn connect(&mut self, client: ClientInfo, partial_id: i32) -> bool {
 		let mut connected = false;
 		if let None = self.partial_clients.get(&client.id) {
 			if let Some(partial) = self.partial_clients.get(&partial_id) {
+				println!("[RELAY] client {} connected to client {}", client.id, partial_id);
 				self.channels.insert((client, partial.clone()));
 				connected = true;
 			}
@@ -103,7 +121,7 @@ impl RelayServer {
 		connected
 	}
 
-	pub fn client_disconnect(&mut self, client_id: i32) {
+	pub fn disconnect(&mut self, client_id: i32) {
 		let mut found = false;
 		if let Some(client) = self.partial_clients.get(&client_id) {
 			println!("[RELAY] partial client {}({}/{}) disconnected", client.nickname, client.staking_ckb, client.bet_ckb);
@@ -114,9 +132,12 @@ impl RelayServer {
 			self.call_event("disconnect");
 		}
 		if let Some(partner) = self.get_partner_client(client_id) {
-			let _: response::PartnerDisconnect = self.get_serverclient(client_id)
+			let disconnect: Result<response::PartnerDisconnect, String> = self.get_serverclient(partner.id)
 				.call("partner_disconnect", request::PartnerDisconnect { client_id })
-				.expect("disconnect");
+				.map_err(|err| err.to_string());
+			if let Err(err) = disconnect {
+				println!("[RELAY] [WARN] partner has already disconnected: {}", err);
+			}
 			if let Some(client) = self.get_partner_client(partner.id) {
 				println!("[RELAY] channel {}({}) <=> {}({}) disconnected", client.nickname, client.id, partner.nickname, partner.id);
 				self.channels.remove(&(client, partner));
