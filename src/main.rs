@@ -35,9 +35,8 @@ fn main() {
 		.register_call("sync_operation")
 		.register_call("sync_p2p_message")
 		.register_call("notify_game_over")
-		.listen(50, 0, |client_id, connected_receivers| {
-			if let Some(receivers) = connected_receivers {
-				RELAY_SERVER.lock().unwrap().get_serverclient(0).append_receivers(client_id, receivers);
+		.listen(50, 0, |client_id, connected| {
+			if connected {
 				println!("[RELAY] client {} connected", client_id);
 			} else {
 				// callback function cannot be blocked
