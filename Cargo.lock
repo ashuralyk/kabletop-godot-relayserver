@@ -2006,28 +2006,6 @@ dependencies = [
 [[package]]
 name = "kabletop-ckb-sdk"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-jsonrpc-client",
- "ckb-crypto",
- "ckb-hash",
- "ckb-jsonrpc-types",
- "ckb-sdk",
- "ckb-types",
- "crossbeam",
- "futures 0.3.18",
- "hex",
- "lazy_static",
- "molecule",
- "serde",
- "serde_json",
- "toml",
- "websocket",
-]
-
-[[package]]
-name = "kabletop-ckb-sdk"
-version = "0.1.0"
 source = "git+https://github.com/ashuralyk/kabletop-ckb-sdk?branch=master#217edd8971802ca42980d97ce0740d171af9725d"
 dependencies = [
  "anyhow",
@@ -2051,6 +2029,7 @@ dependencies = [
 [[package]]
 name = "kabletop-godot-sdk"
 version = "0.1.0"
+source = "git+https://github.com/ashuralyk/kabletop-godot?branch=master#8025d1068b3ebcc8a3c272c89e48bfc5db7d0782"
 dependencies = [
  "cc",
  "ckb-crypto",
@@ -2059,7 +2038,7 @@ dependencies = [
  "futures 0.3.18",
  "gdnative",
  "hex",
- "kabletop-ckb-sdk 0.1.0 (git+https://github.com/ashuralyk/kabletop-ckb-sdk)",
+ "kabletop-ckb-sdk",
  "lazy_static",
  "molecule",
  "serde",
@@ -2072,7 +2051,7 @@ version = "0.1.0"
 dependencies = [
  "futures 0.3.18",
  "hex",
- "kabletop-ckb-sdk 0.1.0",
+ "kabletop-ckb-sdk",
  "kabletop-godot-sdk",
  "lazy_static",
  "serde_json",
